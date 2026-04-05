@@ -45,7 +45,11 @@
         <link
             href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap"
             rel="stylesheet">
-<footer class="mt-20 pb-32 pt-10 border-t border-white/5 text-center">
+
+
+
+        <style>
+            <footer class="mt-20 pb-32 pt-10 border-t border-white/5 text-center">
     <p class="text-xs text-gray-500 italic mb-2">"Let's be stronger to be better"</p>
     <div class="flex justify-center gap-4 mb-4">
         <span class="text-yellow-400">✨</span>
@@ -58,9 +62,6 @@
         © 2026 Habit Tracker Jalur Langit - by @ferdiansyah_ypf
     </p>
 </footer>
-
-
-        <style>
             body {
 
 
@@ -4517,7 +4518,33 @@ document.addEventListener('DOMContentLoaded', init);
 
 
 
-   async function handleLogin() {
+async function handleLogin() {
+    const pinInput = document.getElementById('pinInput').value;
+    const errorEl = document.getElementById('loginError');
+
+    // 1. CEK KE DATABASE GOOGLE SHEETS
+    try {
+        const response = await fetch(SCRIPT_URL);
+        const users = await response.json();
+        
+        const user = users.find(u => u.pin === pinInput);
+
+        if (!user) {
+            errorEl.textContent = '❌ PIN tidak terdaftar';
+            errorEl.classList.remove('hidden');
+        } else if (user.status === 'inactive') {
+            errorEl.textContent = '🚫 Akun Belum Aktif. Hubungi Admin.';
+            errorEl.classList.remove('hidden');
+        } else {
+            // LOGIN SUKSES
+            currentUser = { pin: user.pin, name: user.name };
+            sessionStorage.setItem('currentUserPin', user.pin);
+            showMainApp();
+        }
+    } catch (e) {
+        alert("Gagal verifikasi login.");
+    }
+}
 function togglePasswordVisibility(inputId) {
 const pinField = document.getElementById(inputId);
 // Kita cek tipe inputnya sekarang
@@ -4661,45 +4688,52 @@ loginForm.classList.remove('hidden');
 regForm.classList.add('hidden');
 }
 }
-
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzl2LUsw-PRQcqyU2j_dD-f7pNVw3MtC6h-DHgtTSB2WoAFsrq_wF0NlBxq00Bg5xMH/exec"
 function handleRegisterSubmit() {
-const name = document.getElementById('regName').value.trim();
-const email = document.getElementById('regEmail').value.trim();
-const wa = document.getElementById('regWA').value.trim();
-const domisili = document.getElementById('regDomisili').value.trim();
-const ig = document.getElementById('regIG').value.trim(); // Wajib diisi (minimal -)
-const pin = document.getElementById('regPin').value.trim();
+async function handleRegisterSubmit() {
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const wa = document.getElementById('regWA').value.trim();
+    const domisili = document.getElementById('regDomisili').value.trim();
+    const ig = document.getElementById('regIG').value.trim();
+    const pin = document.getElementById('regPin').value.trim();
 
-// VALIDASI: Semua kolom sekarang wajib diisi (termasuk Instagram)
-if (!name || !email || !wa || !domisili || !ig || !pin) {
-alert("Mohon lengkapi semua data! Jika tidak punya Instagram, silakan isi dengan tanda (-)");
-return;
-}
+    if (!name || !email || !wa || !domisili || !ig || !pin) {
+        alert("Mohon lengkapi semua data!");
+        return;
+    }
 
-// Tampilkan pesan sukses dengan ringkasan lengkap
-document.getElementById('registerForm').innerHTML = `
-<div class="text-center space-y-4 py-6 animate-fade-in">
-    <div class="text-5xl mb-2">📩</div>
-    <h3 class="text-xl font-bold text-green-400">Data Terkirim!</h3>
-    <p class="text-sm text-gray-300">Pendaftaran atas nama <b>${name}</b> telah diterima.</p>
+    const newUser = { action: "register", pin, name, email, wa, domisili, ig };
 
-    <div class="bg-slate-800/50 p-3 rounded-xl border border-white/10 text-xs text-left space-y-1">
-        <p>📍 PIN: <b>${pin}</b></p>
-        <p>📍 Domisili: <b>${domisili}</b></p>
-        <p>📍 WhatsApp: <b>${wa}</b></p>
-        <p>📍 Instagram: <b>${ig}</b></p>
-    </div>
+    // 1. KIRIM KE GOOGLE SHEETS
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify(newUser)
+        });
+        
+        // 2. TAMPILKAN RINGKASAN & LINK WA (Tetap Ada)
+        const pesanWA = `Halo Admin, saya sudah daftar Habit Tracker Jalur Langit.%0A%0A` +
+                        `📝 *Data Pendaftaran:*%0A` +
+                        `- Nama: ${encodeURIComponent(name)}%0A` +
+                        `- PIN: ${pin}%0A` +
+                        `Mohon segera diaktifkan ya Admin.`;
 
-    <p class="text-[10px] text-gray-400">Hubungi Admin untuk mengaktifkan akun Anda.</p>
+        const waLink = `https://api.whatsapp.com/send?phone=6285748110997&text=${pesanWA}`;
 
-    <a href="https://wa.me/6285748110997?text=Halo%20Admin%2C%20saya%20sudah%20daftar dan bagikan info habit tracker %20Jalur%20Langit atas %0ANama%3A%20${encodeURIComponent(name)}%0ADomisili%3A%20${encodeURIComponent(domisili)}%0AIG%3A%20${encodeURIComponent(ig)}%0AMohon%20aktivasi%20PIN%20${pin}."
-        class="btn-golden block py-3 rounded-xl text-sm font-bold shadow-lg">
-        💬 Chat Admin Sekarang
-    </a>
-
-    <button onclick="location.reload()" class="text-xs text-gray-500 hover:text-white mt-2">Kembali ke Login</button>
-</div>
-`;
+        document.getElementById('registerForm').innerHTML = `
+            <div class="text-center space-y-4 py-4" style="color: white;">
+                <h3 class="text-xl font-bold text-yellow-400">Pendaftaran Terkirim!</h3>
+                <p class="text-xs">Data kamu sudah tersimpan di database admin.</p>
+                <a href="${waLink}" target="_blank" class="btn-golden block py-3 rounded-xl font-bold mx-4 no-underline text-center">
+                    💬 Lapor Admin via WA
+                </a>
+                <button onclick="location.reload()" class="text-xs text-blue-400 underline">Kembali ke Login</button>
+            </div>
+        `;
+    } catch (e) {
+        alert("Gagal terhubung ke database. Cek koneksi internet.");
+    }
 }
 
     function copyWebsiteLink() {
